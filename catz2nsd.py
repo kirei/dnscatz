@@ -25,6 +25,7 @@ class CatalogZone:
     zone: str
     master: str
     keyname: str
+    secret: str
 
 
 def get_catz_zones(master: str, zone: str, keyname: str, keyring) -> set:
@@ -82,18 +83,20 @@ def main() -> None:
 
     config = json.load(open(args.config))
 
-    keyring = dns.tsigkeyring.from_text(
-        {k["keyname"]: k["secret"] for k in config.get("keyring", {})}
-    )
-
     catalog_zones = [
-        CatalogZone(zone=cz["zone"], master=cz["master"], keyname=cz["keyname"])
+        CatalogZone(
+            zone=cz["zone"],
+            master=cz["master"],
+            keyname=cz["keyname"],
+            secret=cz["secret"],
+        )
         for cz in config.get("zones", [])
     ]
 
     current_zones = get_current_zones(args.zonelist)
     all_new_zones = set()
     for cz in catalog_zones:
+        keyring = dns.tsigkeyring.from_text({cz.keyname: cz.secret})
         zones = get_catz_zones(
             master=cz.master, zone=cz.zone, keyname=cz.keyname, keyring=keyring
         )
