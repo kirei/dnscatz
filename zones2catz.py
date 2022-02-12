@@ -58,8 +58,8 @@ def main() -> None:
     for zone in zones:
         if not zone.endswith("."):
             zone += "."
-        h = uuid.uuid5(uuid.NAMESPACE_DNS, zone)
-        print(f"{h}.zones.{origin} 0 IN PTR {zone}")
+        zone_id = uuid.uuid5(uuid.NAMESPACE_DNS, zone)
+        print(f"{zone_id}.zones.{origin} 0 IN PTR {zone}")
 
 
 if __name__ == "__main__":
