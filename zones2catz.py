@@ -1,3 +1,8 @@
+"""
+Create catalog zone per draft-ietf-dnsop-dns-catalog-zones from a file
+containing list of zones
+"""
+
 import argparse
 import sys
 import time
