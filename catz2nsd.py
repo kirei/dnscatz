@@ -51,7 +51,7 @@ def get_current_zones(filename: str) -> set:
     zones = set()
     try:
         for z in open(filename).readlines():
-            zones.add(z.rstrip())
+            zones.add(z.rstrip().lower())
     except FileNotFoundError:
         pass
     return zones
@@ -95,6 +95,8 @@ def main() -> None:
 
     current_zones = get_current_zones(args.zonelist)
     all_new_zones = set()
+    processed_zones = set()
+
     for cz in catalog_zones:
         keyring = dns.tsigkeyring.from_text({cz.keyname: cz.secret})
         zones = get_catz_zones(
@@ -102,12 +104,14 @@ def main() -> None:
         )
         new_zones = zones - current_zones
         for zone in new_zones:
-            nsd_control(f"addzone {zone.lower()} {cz.master}", args.dry_run)
+            print(f"Add zone {zone} from {cz.master}")
+            nsd_control(f"addzone {zone} {cz.master}", args.dry_run)
 
         all_new_zones = all_new_zones & new_zones
 
     del_zones = current_zones - all_new_zones
     for zone in del_zones:
+        print(f"Remove zone {zone}")
         nsd_control(f"delzone {zone}", args.dry_run)
 
 
