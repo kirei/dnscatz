@@ -22,14 +22,12 @@ import dns.zone
 
 DEFAULT_CONFIG = "catz2nsd.json"
 DEFAULT_ZONELIST = "zone.list"
+DEFAULT_TSIG_ALGORITHM = "hmac-sha256"
 
 
 @dataclass(frozen=True)
 class CatalogZone:
     zone: str
-    master: str
-    keyname: str
-    secret: str
     pattern: str
     zones: Set[str]
 
@@ -38,14 +36,12 @@ class CatalogZone:
         return [
             CatalogZone(
                 zone=cz["zone"],
-                master=cz["master"],
-                pattern=cz.get("pattern") or cz["master"],
-                keyname=cz["keyname"],
-                secret=cz["secret"],
+                pattern=cz.get("pattern", cz["master"]),
                 zones=get_catz_zones(
                     zone=cz["zone"],
                     master=cz["master"],
                     keyname=cz["keyname"],
+                    keyalgorithm=cz.get("keyalgorithm", DEFAULT_TSIG_ALGORITHM),
                     secret=cz["secret"],
                 ),
             )
@@ -53,7 +49,9 @@ class CatalogZone:
         ]
 
 
-def get_catz_zones(master: str, zone: str, keyname: str, secret: str) -> set:
+def get_catz_zones(
+    master: str, zone: str, keyname: str, keyalgorithm: str, secret: str
+) -> set:
     """Read contents (zones) from a catalog zone"""
     keyring = dns.tsigkeyring.from_text({keyname: secret})
     master_answer = dns.resolver.resolve(master, "A")
@@ -62,7 +60,7 @@ def get_catz_zones(master: str, zone: str, keyname: str, secret: str) -> set:
         zone,
         keyname=keyname,
         keyring=keyring,
-        keyalgorithm=dns.tsig.HMAC_SHA256,
+        keyalgorithm=dns.name.from_text(keyalgorithm),
     )
     catalog_zone = dns.zone.from_xfr(m)
     zones = set()
