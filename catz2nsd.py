@@ -9,7 +9,7 @@ import re
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, Set
+from typing import Dict, List, Set
 
 import dns.query
 import dns.rdataclass
@@ -54,6 +54,7 @@ class CatalogZone:
 
 
 def get_catz_zones(master: str, zone: str, keyname: str, secret: str) -> set:
+    """Read contents (zones) from a catalog zone"""
     keyring = dns.tsigkeyring.from_text({keyname: secret})
     master_answer = dns.resolver.resolve(master, "A")
     m = dns.query.xfr(
@@ -73,7 +74,23 @@ def get_catz_zones(master: str, zone: str, keyname: str, secret: str) -> set:
     return zones
 
 
+def ensure_unique_zones(catalog_zones: List[CatalogZone]):
+    """Ensure zones are not defined in multiple catalogs"""
+    zone2catalogs = defaultdict(set)
+    for cz in catalog_zones:
+        for zone in cz.zones:
+            zone2catalogs[zone].add(cz.zone)
+    errors = 0
+    for zone, catalogs in zone2catalogs.items():
+        if len(catalogs) > 1:
+            logging.error("%s defined in multiple catalogs: %s", zone, catalogs)
+            errors += 1
+    if errors:
+        sys.exit(-1)
+
+
 def get_current_zones(filename: str) -> Dict[str, str]:
+    """Get dictionary of current zones and patterns"""
     res = {}
     try:
         for line in open(filename).readlines():
@@ -113,18 +130,7 @@ def main() -> None:
 
     catalog_zones = CatalogZone.from_config(config)
 
-    zone2catalogs = defaultdict(set)
-    for cz in catalog_zones:
-        for zone in cz.zones:
-            zone2catalogs[zone].add(cz.zone)
-
-    errors = 0
-    for zone, catalogs in zone2catalogs.items():
-        if len(catalogs) > 1:
-            logging.error("%s defined in multiple catalogs: %s", zone, catalogs)
-            errors += 1
-    if errors:
-        sys.exit(-1)
+    ensure_unique_zones(catalog_zones)
 
     current_zone_patterns = get_current_zones(args.zonelist)
     current_zones = set(current_zone_patterns.keys())
