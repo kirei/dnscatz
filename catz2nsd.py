@@ -61,7 +61,7 @@ def nsd_control(command: str, dry_run: bool = True):
     if dry_run:
         print("# nsd-control", command)
     else:
-        os.system(command)
+        os.system(f"nsd-control {command}")
 
 
 def main() -> None:
