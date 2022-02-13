@@ -20,8 +20,8 @@ import dns.tsigkeyring
 import dns.xfr
 import dns.zone
 
-DEFAULT_CONFIG = "catz2nsd.json"
-DEFAULT_ZONELIST = "zone.list"
+DEFAULT_CONFIG = "/etc/nsd/catz2nsd.json"
+DEFAULT_ZONELIST = "/var/lib/nsd/zone.list"
 DEFAULT_TSIG_ALGORITHM = "hmac-sha256"
 
 
