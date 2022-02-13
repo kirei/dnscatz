@@ -35,7 +35,7 @@ class CatalogZone:
 
     @classmethod
     def from_config(cls, config: dict) -> []:
-         return [
+        return [
             CatalogZone(
                 zone=cz["zone"],
                 master=cz["master"],
