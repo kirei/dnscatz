@@ -1,11 +1,15 @@
 """
 Configure NSD using a catalog zones per draft-ietf-dnsop-dns-catalog-zones
 """
-
 import argparse
 import json
+import logging
 import os
+import re
+import sys
+from collections import defaultdict
 from dataclasses import dataclass
+from typing import Dict, Set
 
 import dns.query
 import dns.rdataclass
@@ -26,9 +30,31 @@ class CatalogZone:
     master: str
     keyname: str
     secret: str
+    pattern: str
+    zones: Set[str]
+
+    @classmethod
+    def from_config(cls, config: dict) -> []:
+         return [
+            CatalogZone(
+                zone=cz["zone"],
+                master=cz["master"],
+                pattern=cz.get("pattern") or cz["master"],
+                keyname=cz["keyname"],
+                secret=cz["secret"],
+                zones=get_catz_zones(
+                    zone=cz["zone"],
+                    master=cz["master"],
+                    keyname=cz["keyname"],
+                    secret=cz["secret"],
+                ),
+            )
+            for cz in config.get("zones", [])
+        ]
 
 
-def get_catz_zones(master: str, zone: str, keyname: str, keyring) -> set:
+def get_catz_zones(master: str, zone: str, keyname: str, secret: str) -> set:
+    keyring = dns.tsigkeyring.from_text({keyname: secret})
     master_answer = dns.resolver.resolve(master, "A")
     m = dns.query.xfr(
         master_answer[0].address,
@@ -47,20 +73,22 @@ def get_catz_zones(master: str, zone: str, keyname: str, keyring) -> set:
     return zones
 
 
-def get_current_zones(filename: str) -> set:
-    zones = set()
+def get_current_zones(filename: str) -> Dict[str, str]:
+    res = {}
     try:
-        for z in open(filename).readlines():
-            zones.add(z.rstrip().lower())
+        for line in open(filename).readlines():
+            if line.startswith("#"):
+                continue
+            if match := re.match(r"^add (\S+) (\w+)$", line.rstrip()):
+                res[match.group(1).lower()] = match.group(2)
     except FileNotFoundError:
         pass
-    return zones
+    return res
 
 
 def nsd_control(command: str, dry_run: bool = True):
-    if dry_run:
-        print("# nsd-control", command)
-    else:
+    print(f"{command}")
+    if not dry_run:
         os.system(f"nsd-control {command}")
 
 
@@ -83,35 +111,35 @@ def main() -> None:
 
     config = json.load(open(args.config))
 
-    catalog_zones = [
-        CatalogZone(
-            zone=cz["zone"],
-            master=cz["master"],
-            keyname=cz["keyname"],
-            secret=cz["secret"],
-        )
-        for cz in config.get("zones", [])
-    ]
+    catalog_zones = CatalogZone.from_config(config)
 
-    current_zones = get_current_zones(args.zonelist)
+    zone2catalogs = defaultdict(set)
+    for cz in catalog_zones:
+        for zone in cz.zones:
+            zone2catalogs[zone].add(cz.zone)
+
+    errors = 0
+    for zone, catalogs in zone2catalogs.items():
+        if len(catalogs) > 1:
+            logging.error("%s defined in multiple catalogs: %s", zone, catalogs)
+            errors += 1
+    if errors:
+        sys.exit(-1)
+
+    current_zone_patterns = get_current_zones(args.zonelist)
+    current_zones = set(current_zone_patterns.keys())
     all_new_zones = set()
-    processed_zones = set()
 
     for cz in catalog_zones:
-        keyring = dns.tsigkeyring.from_text({cz.keyname: cz.secret})
-        zones = get_catz_zones(
-            master=cz.master, zone=cz.zone, keyname=cz.keyname, keyring=keyring
-        )
-        new_zones = zones - current_zones
-        for zone in new_zones:
-            print(f"Add zone {zone} from {cz.master}")
-            nsd_control(f"addzone {zone} {cz.master}", args.dry_run)
-
-        all_new_zones = all_new_zones & new_zones
+        for zone in cz.zones:
+            if zone not in current_zone_patterns:
+                nsd_control(f"addzone {zone} {cz.pattern}", args.dry_run)
+            elif cz.pattern != current_zone_patterns[zone]:
+                nsd_control(f"changezone {zone} {cz.pattern}", args.dry_run)
+            all_new_zones.add(zone)
 
     del_zones = current_zones - all_new_zones
     for zone in del_zones:
-        print(f"Remove zone {zone}")
         nsd_control(f"delzone {zone}", args.dry_run)
 
 
