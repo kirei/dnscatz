@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "dnscatz"
+version = "0.1.0"
+description = "DNS Catalog Zones Tools"
+authors = ["Jakob Schlyter <jakob@kirei.se>"]
+license = "BSD-2"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+dnspython = "^2.2.0"
+
+[tool.poetry.dev-dependencies]
+black = "^22.1.0"
+isort = "^5.10.1"
+pylama = "^8.3.7"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+catz2nsd = "dnscatz.catz2nsd:main"
+zones2catz = "dnscatz.zones2catz:main"
