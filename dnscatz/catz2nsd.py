@@ -25,6 +25,8 @@ DEFAULT_CONFIG = "/etc/nsd/catz2nsd.conf"
 DEFAULT_ZONELIST = "/var/lib/nsd/zone.list"
 DEFAULT_TSIG_ALGORITHM = "hmac-sha256"
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass(frozen=True)
 class CatalogZone:
@@ -130,7 +132,7 @@ def ensure_unique_zones(catalog_zones: List[CatalogZone]):
     errors = 0
     for zone, catalogs in zone2catalogs.items():
         if len(catalogs) > 1:
-            logging.error("%s defined in multiple catalogs: %s", zone, catalogs)
+            logger.error("%s defined in multiple catalogs: %s", zone, catalogs)
             errors += 1
     if errors:
         sys.exit(-1)
@@ -151,8 +153,10 @@ def get_current_zones(filename: str) -> Dict[str, str]:
 
 
 def nsd_control(command: str, dry_run: bool = True):
-    print(f"{command}")
-    if not dry_run:
+    if dry_run:
+        logger.debug("DRY-RUN: nsd-control %s", command)
+    else:
+        logger.debug("EXEC: nsd-control %s", command)
         os.system(f"nsd-control {command}")
 
 
@@ -170,8 +174,14 @@ def main() -> None:
     parser.add_argument(
         "--dry-run", dest="dry_run", action="store_true", help="Do not execute commands"
     )
+    parser.add_argument("--debug", action="store_true", help="Enable debugging")
 
     args = parser.parse_args()
+
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
 
     catalog_zones = read_config(args.config)
 
@@ -184,13 +194,18 @@ def main() -> None:
     for cz in catalog_zones:
         for zone in cz.zones:
             if zone not in current_zone_patterns:
+                logger.info("Add zone %s (%s)", zone, cz.pattern)
                 nsd_control(f"addzone {zone} {cz.pattern}", args.dry_run)
             elif cz.pattern != current_zone_patterns[zone]:
+                logger.info("Update zone %s (%s)", zone, cz.pattern)
                 nsd_control(f"changezone {zone} {cz.pattern}", args.dry_run)
+            else:
+                logger.debug("No changes to zone %s (%s)", zone, cz.pattern)
             all_new_zones.add(zone)
 
     del_zones = current_zones - all_new_zones
     for zone in del_zones:
+        logger.info("Delete zone %s", zone)
         nsd_control(f"delzone {zone}", args.dry_run)
 
 
