@@ -3,7 +3,6 @@ Configure NSD using a catalog zones per draft-ietf-dnsop-dns-catalog-zones
 """
 
 import argparse
-import json
 import logging
 import os
 import re
@@ -20,8 +19,9 @@ import dns.tsig
 import dns.tsigkeyring
 import dns.xfr
 import dns.zone
+import yaml
 
-DEFAULT_CONFIG = "/etc/nsd/catz2nsd.json"
+DEFAULT_CONFIG = "/etc/nsd/catz2nsd.conf"
 DEFAULT_ZONELIST = "/var/lib/nsd/zone.list"
 DEFAULT_TSIG_ALGORITHM = "hmac-sha256"
 
@@ -32,22 +32,71 @@ class CatalogZone:
     pattern: str
     zones: Set[str]
 
-    @classmethod
-    def from_config(cls, config: dict) -> []:
-        return [
-            CatalogZone(
-                zone=cz["zone"],
-                pattern=cz.get("pattern", cz["master"]),
-                zones=get_catz_zones(
-                    zone=cz["zone"],
-                    master=cz["master"],
-                    keyname=cz["keyname"],
-                    keyalgorithm=cz.get("keyalgorithm", DEFAULT_TSIG_ALGORITHM),
-                    secret=cz["secret"],
-                ),
+
+@dataclass(frozen=True)
+class TSIG:
+    keyname: str
+    keyalgorithm: str
+    secret: str
+
+
+def read_dicts(filename: str) -> List[dict]:
+    """Read multiple YAML dicts from file"""
+    res = []
+    data = ""
+    with open(filename) as input_file:
+        for line in input_file.readlines():
+            if not re.fullmatch(r"^\s*$", line.rstrip()):
+                data += line
+            elif len(data):
+                doc = yaml.safe_load(data)
+                if isinstance(doc, dict):
+                    res.append(doc)
+    if len(data):
+        doc = yaml.safe_load(data)
+        if isinstance(doc, dict):
+            res.append(doc)
+    return res
+
+
+def read_config(filename: str) -> List[CatalogZone]:
+    """Read configuration file and return list of catalog zones"""
+
+    res = []
+    config_dicts = read_dicts(filename)
+
+    # read all TSIG keys
+    tsigs = {}
+    for config_dict in config_dicts:
+        if key_dict := config_dict.get("key"):
+            tsigs[key_dict["name"]] = TSIG(
+                keyname=key_dict["name"],
+                keyalgorithm=key_dict["algorithm"],
+                secret=key_dict["secret"],
             )
-            for cz in config.get("zones", [])
-        ]
+
+    # read catalog zones
+    for config_dict in config_dicts:
+        if cz_dict := config_dict.get("catalog-zone"):
+            name = cz_dict["name"]
+            pattern = cz_dict["pattern"]
+            master, keyname = cz_dict["request-xfr"].split()
+
+            res.append(
+                CatalogZone(
+                    zone=name,
+                    pattern=pattern,
+                    zones=get_catz_zones(
+                        zone=name,
+                        master=master,
+                        keyname=keyname,
+                        keyalgorithm=tsigs[keyname].keyalgorithm,
+                        secret=tsigs[keyname].secret,
+                    ),
+                )
+            )
+
+    return res
 
 
 def get_catz_zones(
@@ -55,9 +104,8 @@ def get_catz_zones(
 ) -> set:
     """Read contents (zones) from a catalog zone"""
     keyring = dns.tsigkeyring.from_text({keyname: secret})
-    master_answer = dns.resolver.resolve(master, "A")
     m = dns.query.xfr(
-        master_answer[0].address,
+        master,
         zone,
         keyname=keyname,
         keyring=keyring,
@@ -125,9 +173,7 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    config = json.load(open(args.config))
-
-    catalog_zones = CatalogZone.from_config(config)
+    catalog_zones = read_config(args.config)
 
     ensure_unique_zones(catalog_zones)
 
