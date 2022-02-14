@@ -1,6 +1,7 @@
 """
 Configure NSD using a catalog zones per draft-ietf-dnsop-dns-catalog-zones
 """
+
 import argparse
 import json
 import logging
