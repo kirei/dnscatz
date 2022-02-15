@@ -18,6 +18,7 @@ DEFAULT_SOA_RETRY = 600
 DEFAULT_SOA_EXPIRE = 2**31 - 1
 DEFAULT_SOA_MINIMUM = 0
 
+DEFAULT_TTL = 0
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -56,15 +57,28 @@ def main() -> None:
         sys.stdout = open(args.output, "wt")
 
     print(
-        f"{origin} 0 IN SOA invalid. invalid. {serial} {DEFAULT_SOA_REFRESH} {DEFAULT_SOA_RETRY} {DEFAULT_SOA_EXPIRE} {DEFAULT_SOA_MINIMUM}"
+        " ".join(
+            [
+                origin,
+                str(DEFAULT_TTL),
+                "IN SOA",
+                "invalid.",
+                "invalid.",
+                str(serial),
+                str(DEFAULT_SOA_REFRESH),
+                str(DEFAULT_SOA_RETRY),
+                str(DEFAULT_SOA_EXPIRE),
+                str(DEFAULT_SOA_MINIMUM),
+            ]
+        )
     )
-    print(f"{origin} 0 IN NS invalid.")
-    print(f'version.{origin} 0 IN TXT "{CATZ_VERSION}"')
+    print(f"{origin} {DEFAULT_TTL} IN NS invalid.")
+    print(f'version.{origin} {DEFAULT_TTL} IN TXT "{CATZ_VERSION}"')
     for zone in zones:
         if not zone.endswith("."):
             zone += "."
         zone_id = uuid.uuid5(uuid.NAMESPACE_DNS, zone)
-        print(f"{zone_id}.zones.{origin} 0 IN PTR {zone}")
+        print(f"{zone_id}.zones.{origin} {DEFAULT_TTL} IN PTR {zone}")
 
 
 if __name__ == "__main__":
