@@ -20,6 +20,7 @@ DEFAULT_SOA_MINIMUM = 0
 
 DEFAULT_TTL = 0
 
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
