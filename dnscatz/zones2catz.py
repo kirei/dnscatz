@@ -76,8 +76,6 @@ def main() -> None:
     for z in open(args.zonelist).readlines():
         zones.add(z.rstrip())
 
-    serial = int(time.time())
-
     origin = args.origin
     if not origin.endswith("."):
         origin += "."
