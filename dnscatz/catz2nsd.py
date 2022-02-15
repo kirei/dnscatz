@@ -1,5 +1,17 @@
 """
 Configure NSD using a catalog zones per draft-ietf-dnsop-dns-catalog-zones
+
+Config file syntax:
+
+catalog-zone:
+  name: <string>
+  request-xfr: <ip-address> <key-name | NOKEY
+  pattern: <pattern-name>
+
+key:
+  name: <string>
+  algorithm: <string>
+  secret: <base64 blob>
 """
 
 import argparse
@@ -176,13 +188,13 @@ def nsd_control(command: str, dry_run: bool = True):
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config", metavar="config", default=DEFAULT_CONFIG, help="Config file"
+        "--config", metavar="config", default=DEFAULT_CONFIG, help="Configuration file"
     )
     parser.add_argument(
         "--zonelist",
         metavar="filename",
         default=DEFAULT_ZONELIST,
-        help="Zone list file",
+        help="NSD zone list file",
     )
     parser.add_argument(
         "--dry-run", dest="dry_run", action="store_true", help="Do not execute commands"
