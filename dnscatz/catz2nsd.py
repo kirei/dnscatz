@@ -37,6 +37,8 @@ DEFAULT_CONFIG = "/etc/nsd/catz2nsd.conf"
 DEFAULT_ZONELIST = "/var/lib/nsd/zone.list"
 DEFAULT_TSIG_ALGORITHM = "hmac-sha256"
 
+SUPPORTED_VERSIONS = [2]
+
 logger = logging.getLogger(__name__)
 
 
@@ -144,8 +146,26 @@ def get_catz_zones(
         if str(k).endswith(".zones"):
             for zone in v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.PTR):
                 zones.add(str(zone).rstrip("."))
+        elif str(k) == "version":
+            if rdataset := v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.TXT):
+                if get_catz_version(rdataset[0]) not in SUPPORTED_VERSIONS:
+                    raise ValueError("Unsupported catalog zone version")
+        elif str(k).startswith("group."):
+            logging.info("Group property not supported: %s", str(k))
+        elif str(k).startswith("coo."):
+            logging.info("Change of Ownership property not supported: %s", str(k))
+        elif str(k).startswith("serial."):
+            logging.info("Serial property not supported: %s", str(k))
 
     return zones
+
+
+def get_catz_version(rr) -> Optional[int]:
+    """Get catalog zone version from TXT RR"""
+    if rr.rdtype != dns.rdatatype.TXT:
+        raise ValueError("Invalid rdatatype")
+    if match := re.fullmatch(r"\"(\d+)\"", str(rr)):
+        return int(match.group(1))
 
 
 def ensure_unique_zones(catalog_zones: List[CatalogZone]):
