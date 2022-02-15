@@ -106,31 +106,29 @@ def read_config(filename: str) -> List[CatalogZone]:
                 keyalgorithm = tsigs[keyname].keyalgorithm
                 secret = tsigs[keyname].secret
 
+            zone = axfr(
+                zone=name,
+                master=master,
+                keyname=keyname,
+                keyalgorithm=keyalgorithm,
+                secret=secret,
+            )
+
             res.append(
-                CatalogZone(
-                    zone=name,
-                    pattern=pattern,
-                    zones=get_catz_zones(
-                        zone=name,
-                        master=master,
-                        keyname=keyname,
-                        keyalgorithm=keyalgorithm,
-                        secret=secret,
-                    ),
-                )
+                CatalogZone(zone=name, pattern=pattern, zones=get_catz_zones(zone))
             )
 
     return res
 
 
-def get_catz_zones(
+def axfr(
     master: str,
     zone: str,
     keyname: Optional[str],
     keyalgorithm: Optional[str],
     secret: Optional[str],
-) -> set:
-    """Read contents (zones) from a catalog zone"""
+) -> dns.zone.Zone:
+    """Perform zone transfer"""
     if keyname and keyalgorithm and secret:
         keyring = dns.tsigkeyring.from_text({keyname: secret})
         keyalgorithm = dns.name.from_text(keyalgorithm)
@@ -140,23 +138,26 @@ def get_catz_zones(
     m = dns.query.xfr(
         master, zone, keyname=keyname, keyring=keyring, keyalgorithm=keyalgorithm
     )
-    catalog_zone = dns.zone.from_xfr(m)
+    return dns.zone.from_xfr(m)
+
+
+def get_catz_zones(catalog_zone: dns.zone.Zone) -> Set[str]:
+    """Get zones from catalog zone"""
     zones = set()
     for k, v in catalog_zone.nodes.items():
-        if str(k).endswith(".zones"):
-            for zone in v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.PTR):
-                zones.add(str(zone).rstrip("."))
-        elif str(k) == "version":
+        if str(k) == "version":
             if rdataset := v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.TXT):
                 if get_catz_version(rdataset[0]) not in SUPPORTED_VERSIONS:
                     raise ValueError("Unsupported catalog zone version")
+        elif str(k).endswith(".zones"):
+            for zone in v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.PTR):
+                zones.add(str(zone).rstrip("."))
         elif str(k).startswith("group."):
             logging.info("Group property not supported: %s", str(k))
         elif str(k).startswith("coo."):
             logging.info("Change of Ownership property not supported: %s", str(k))
         elif str(k).startswith("serial."):
             logging.info("Serial property not supported: %s", str(k))
-
     return zones
 
 
