@@ -9,7 +9,7 @@ import re
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, List, Set
+from typing import Dict, List, Optional, Set
 
 import dns.query
 import dns.rdataclass
@@ -84,6 +84,14 @@ def read_config(filename: str) -> List[CatalogZone]:
             pattern = cz_dict["pattern"]
             master, keyname = cz_dict["request-xfr"].split()
 
+            if keyname.upper() == "NOKEY":
+                keyname = None
+                keyalgorithm = None
+                secret = None
+            else:
+                keyalgorithm = tsigs[keyname].keyalgorithm
+                secret = tsigs[keyname].secret
+
             res.append(
                 CatalogZone(
                     zone=name,
@@ -92,8 +100,8 @@ def read_config(filename: str) -> List[CatalogZone]:
                         zone=name,
                         master=master,
                         keyname=keyname,
-                        keyalgorithm=tsigs[keyname].keyalgorithm,
-                        secret=tsigs[keyname].secret,
+                        keyalgorithm=keyalgorithm,
+                        secret=secret,
                     ),
                 )
             )
@@ -102,16 +110,21 @@ def read_config(filename: str) -> List[CatalogZone]:
 
 
 def get_catz_zones(
-    master: str, zone: str, keyname: str, keyalgorithm: str, secret: str
+    master: str,
+    zone: str,
+    keyname: Optional[str],
+    keyalgorithm: Optional[str],
+    secret: Optional[str],
 ) -> set:
     """Read contents (zones) from a catalog zone"""
-    keyring = dns.tsigkeyring.from_text({keyname: secret})
+    if keyname and keyalgorithm and secret:
+        keyring = dns.tsigkeyring.from_text({keyname: secret})
+        keyalgorithm = dns.name.from_text(keyalgorithm)
+    else:
+        keyring = None
+        keyalgorithm = None
     m = dns.query.xfr(
-        master,
-        zone,
-        keyname=keyname,
-        keyring=keyring,
-        keyalgorithm=dns.name.from_text(keyalgorithm),
+        master, zone, keyname=keyname, keyring=keyring, keyalgorithm=keyalgorithm
     )
     catalog_zone = dns.zone.from_xfr(m)
     zones = set()
