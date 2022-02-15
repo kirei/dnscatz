@@ -22,3 +22,6 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 catz2nsd = "dnscatz.catz2nsd:main"
 zones2catz = "dnscatz.zones2catz:main"
+
+[tool.isort]
+profile = "black"
