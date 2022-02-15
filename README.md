@@ -8,7 +8,7 @@ The configuration file is NSD-like as described below:
 
     catalog-zone:
       name: <string>
-      request-xfr: <ip-address> <key-name | NOKEY
+      request-xfr: <ip-address> <key-name | NOKEY>
       pattern: <pattern-name>
 
     key:

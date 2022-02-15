@@ -5,7 +5,7 @@ Config file syntax:
 
 catalog-zone:
   name: <string>
-  request-xfr: <ip-address> <key-name | NOKEY
+  request-xfr: <ip-address> <key-name | NOKEY>
   pattern: <pattern-name>
 
 key:
