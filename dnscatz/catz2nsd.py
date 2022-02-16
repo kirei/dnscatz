@@ -118,9 +118,10 @@ def read_config(filename: str) -> List[CatalogZone]:
             elif zonefile := cz_dict.get("zonefile"):
                 zone = dns.zone.from_text(open(zonefile).read(), origin=name)
             else:
-                raise ValueError(
-                    "request-xfr or zonefile must me specified for %s", name
+                logger.error(
+                    "Either request-xfr or zonefile must be specified for %s", name
                 )
+                sys.exit(-1)
 
             res.append(
                 CatalogZone(zone=name, pattern=pattern, zones=get_catz_zones(zone))
@@ -155,8 +156,10 @@ def get_catz_zones(catalog_zone: dns.zone.Zone) -> Set[str]:
     for k, v in catalog_zone.nodes.items():
         if str(k) == "version":
             if rdataset := v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.TXT):
-                if get_catz_version(rdataset[0]) not in SUPPORTED_VERSIONS:
-                    raise ValueError("Unsupported catalog zone version")
+                catz_version = get_catz_version(rdataset[0])
+                if catz_version not in SUPPORTED_VERSIONS:
+                    logger.error("Unsupported catalog zone version (%s)", catz_version)
+                    sys.exit(-1)
         elif str(k).endswith(".zones"):
             for zone in v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.PTR):
                 zones.add(str(zone).rstrip("."))
@@ -172,7 +175,7 @@ def get_catz_zones(catalog_zone: dns.zone.Zone) -> Set[str]:
 def get_catz_version(rr) -> Optional[int]:
     """Get catalog zone version from TXT RR"""
     if rr.rdtype != dns.rdatatype.TXT:
-        raise ValueError("Invalid rdatatype")
+        raise ValueError("Invalid rdatatype for catalog zone version")
     if match := re.fullmatch(r"\"(\d+)\"", str(rr)):
         return int(match.group(1))
 
