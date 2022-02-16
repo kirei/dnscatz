@@ -6,6 +6,7 @@ Config file syntax:
 catalog-zone:
   name: <string>
   request-xfr: <ip-address> <key-name | NOKEY>
+  zonefile: <filename>
   pattern: <pattern-name>
 
 key:
@@ -96,23 +97,30 @@ def read_config(filename: str) -> List[CatalogZone]:
         if cz_dict := config_dict.get("catalog-zone"):
             name = cz_dict["name"]
             pattern = cz_dict["pattern"]
-            master, keyname = cz_dict["request-xfr"].split()
 
-            if keyname.upper() == "NOKEY":
-                keyname = None
-                keyalgorithm = None
-                secret = None
+            if xfr_dict := cz_dict.get("request-xfr"):
+                master, keyname = xfr_dict.split()
+                if keyname.upper() == "NOKEY":
+                    keyname = None
+                    keyalgorithm = None
+                    secret = None
+                else:
+                    keyalgorithm = tsigs[keyname].keyalgorithm
+                    secret = tsigs[keyname].secret
+
+                zone = axfr(
+                    zone=name,
+                    master=master,
+                    keyname=keyname,
+                    keyalgorithm=keyalgorithm,
+                    secret=secret,
+                )
+            elif zonefile := cz_dict.get("zonefile"):
+                zone = dns.zone.from_text(open(zonefile).read(), origin=name)
             else:
-                keyalgorithm = tsigs[keyname].keyalgorithm
-                secret = tsigs[keyname].secret
-
-            zone = axfr(
-                zone=name,
-                master=master,
-                keyname=keyname,
-                keyalgorithm=keyalgorithm,
-                secret=secret,
-            )
+                raise ValueError(
+                    "request-xfr or zonefile must me specified for %s", name
+                )
 
             res.append(
                 CatalogZone(zone=name, pattern=pattern, zones=get_catz_zones(zone))
