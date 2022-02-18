@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class CatalogZone:
-    zone: str
+    origin: str
     pattern: str
     zones: Set[str]
 
@@ -56,6 +56,14 @@ class TSIG:
     keyname: str
     keyalgorithm: str
     secret: str
+
+    @classmethod
+    def from_dict(cls, key_dict: dict):
+        return cls(
+            keyname=key_dict["name"],
+            keyalgorithm=key_dict["algorithm"],
+            secret=key_dict["secret"],
+        )
 
 
 def read_dicts(filename: str) -> List[dict]:
@@ -79,79 +87,74 @@ def read_dicts(filename: str) -> List[dict]:
     return res
 
 
+def read_config_catalog_zone(zone_dict: dict, keys: Dict[str, TSIG]) -> CatalogZone:
+    name = zone_dict["name"]
+    pattern = zone_dict["pattern"]
+
+    if xfr_dict := zone_dict.get("request-xfr"):
+        master, keyname = xfr_dict.split()
+        if keyname.upper() == "NOKEY":
+            keyname = None
+            keyalgorithm = None
+            secret = None
+        else:
+            keyalgorithm = keys[keyname].keyalgorithm
+            secret = keys[keyname].secret
+
+        zone = None
+        if zonefile := zone_dict.get("zonefile"):
+            try:
+                zone = dns.zone.from_file(zonefile, origin=name)
+            except FileNotFoundError:
+                pass
+
+        zone = axfr(
+            origin=name,
+            master=master,
+            keyname=keyname,
+            keyalgorithm=keyalgorithm,
+            secret=secret,
+            zone=zone,
+        )
+
+        if zonefile := zone_dict.get("zonefile"):
+            zone.to_file(zonefile, want_origin=True)
+    elif zonefile := zone_dict.get("zonefile"):
+        zone = dns.zone.from_file(zonefile, origin=name)
+    else:
+        logger.error("Either request-xfr or zonefile must be specified for %s", name)
+        sys.exit(-1)
+
+    return CatalogZone(origin=name, pattern=pattern, zones=get_catz_zones(zone))
+
+
 def read_config(filename: str) -> List[CatalogZone]:
     """Read configuration file and return list of catalog zones"""
 
-    res = {}
     config_dicts = read_dicts(filename)
 
-    # read all TSIG keys
-    tsigs = {}
+    keys = {}
+    zones = {}
+
+    # read keys
     for config_dict in config_dicts:
         if key_dict := config_dict.get("key"):
-            name = key_dict["name"]
-
-            if name in tsigs:
-                logger.error("Duplicate key %s found", name)
+            if key_dict["name"] in keys:
+                logger.error("Duplicate key %s found", key_dict["name"])
                 sys.exit(-1)
-
-            tsigs[name] = TSIG(
-                keyname=name,
-                keyalgorithm=key_dict["algorithm"],
-                secret=key_dict["secret"],
-            )
+            tsig = TSIG.from_dict(key_dict)
+            keys[tsig.keyname] = tsig
 
     # read catalog zones
     for config_dict in config_dicts:
-        if cz_dict := config_dict.get("catalog-zone"):
-            name = cz_dict["name"]
-            pattern = cz_dict["pattern"]
-
-            if name in res:
-                logger.error("Duplicate catalog-zone %s found", name)
+        if zone_dict := config_dict.get("catalog-zone"):
+            if zone_dict["name"] in zones:
+                logger.error("Duplicate catalog-zone %s found", zone_dict["name"])
                 sys.exit(-1)
+            catalog_zone = read_config_catalog_zone(zone_dict, keys)
+            zones[catalog_zone.origin] = catalog_zone
 
-            if xfr_dict := cz_dict.get("request-xfr"):
-                master, keyname = xfr_dict.split()
-                if keyname.upper() == "NOKEY":
-                    keyname = None
-                    keyalgorithm = None
-                    secret = None
-                else:
-                    keyalgorithm = tsigs[keyname].keyalgorithm
-                    secret = tsigs[keyname].secret
-
-                zone = None
-                if zonefile := cz_dict.get("zonefile"):
-                    try:
-                        zone = dns.zone.from_file(zonefile, origin=name)
-                    except FileNotFoundError:
-                        pass
-
-                zone = axfr(
-                    origin=name,
-                    master=master,
-                    keyname=keyname,
-                    keyalgorithm=keyalgorithm,
-                    secret=secret,
-                    zone=zone,
-                )
-
-                if zonefile := cz_dict.get("zonefile"):
-                    zone.to_file(zonefile, want_origin=True)
-            elif zonefile := cz_dict.get("zonefile"):
-                zone = dns.zone.from_text(open(zonefile).read(), origin=name)
-            else:
-                logger.error(
-                    "Either request-xfr or zonefile must be specified for %s", name
-                )
-                sys.exit(-1)
-
-            res[name] = CatalogZone(
-                zone=name, pattern=pattern, zones=get_catz_zones(zone)
-            )
-
-    return res.values()
+    return zones.values()
 
 
 def axfr(
@@ -180,7 +183,7 @@ def axfr(
             keyalgorithm=keyalgorithm,
         )
         if serial == new_serial:
-            logger.info("Zone %s not changed", origin)
+            logger.debug("Zone %s not changed", origin)
             return zone
 
     m = dns.query.xfr(
@@ -190,7 +193,7 @@ def axfr(
     t1 = time.perf_counter()
     zone = dns.zone.from_xfr(m)
     t2 = time.perf_counter()
-    logger.info("Zone %s transferred in %.3f seconds", origin, t2 - t1)
+    logger.debug("Zone %s transferred in %.3f seconds", origin, t2 - t1)
 
     return zone
 
@@ -230,7 +233,7 @@ def ensure_unique_zones(catalog_zones: List[CatalogZone]):
     zone2catalogs = defaultdict(set)
     for cz in catalog_zones:
         for zone in cz.zones:
-            zone2catalogs[zone].add(cz.zone)
+            zone2catalogs[zone].add(cz.origin)
     errors = 0
     for zone, catalogs in zone2catalogs.items():
         if len(catalogs) > 1:
