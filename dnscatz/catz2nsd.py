@@ -115,6 +115,8 @@ def read_config(filename: str) -> List[CatalogZone]:
                     keyalgorithm=keyalgorithm,
                     secret=secret,
                 )
+                if zonefile := cz_dict.get("zonefile"):
+                    zone.to_file(zonefile, want_origin=True)
             elif zonefile := cz_dict.get("zonefile"):
                 zone = dns.zone.from_text(open(zonefile).read(), origin=name)
             else:
