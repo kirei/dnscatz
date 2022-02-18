@@ -83,7 +83,6 @@ def read_config(filename: str) -> List[CatalogZone]:
     """Read configuration file and return list of catalog zones"""
 
     res = {}
-    origins = set()
     config_dicts = read_dicts(filename)
 
     # read all TSIG keys
