@@ -2,7 +2,7 @@
 
 ## catz2nsd
 
-`catz2nsd` configure NSD using catalog zones. Will read a configuration file (default `/etc/nsd/catz2nsd.conf`) and update NSD using `nsd-control`. It must also be able to read the list of currently configured zones (default `/var/lib/nsd/zone.list`).
+`catz2nsd` configure NSD using catalog zones. It reads a configuration file (default `/etc/nsd/catz2nsd.conf`) and update NSD using `nsd-control`. `catz2nsd` must be able to read the list of NSD's currently configured zones (default `/var/lib/nsd/zone.list`) in order to determine what zones to add, remove or update.
 
 The configuration file is NSD-like as described below:
 
