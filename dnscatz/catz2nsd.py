@@ -20,6 +20,7 @@ import logging
 import os
 import re
 import sys
+import time
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Set
@@ -121,13 +122,22 @@ def read_config(filename: str) -> List[CatalogZone]:
                     keyalgorithm = tsigs[keyname].keyalgorithm
                     secret = tsigs[keyname].secret
 
+                zone = None
+                if zonefile := cz_dict.get("zonefile"):
+                    try:
+                        zone = dns.zone.from_file(zonefile, origin=name)
+                    except FileNotFoundError:
+                        pass
+
                 zone = axfr(
-                    zone=name,
+                    origin=name,
                     master=master,
                     keyname=keyname,
                     keyalgorithm=keyalgorithm,
                     secret=secret,
+                    zone=zone,
                 )
+
                 if zonefile := cz_dict.get("zonefile"):
                     zone.to_file(zonefile, want_origin=True)
             elif zonefile := cz_dict.get("zonefile"):
@@ -146,12 +156,13 @@ def read_config(filename: str) -> List[CatalogZone]:
 
 
 def axfr(
+    origin: str,
     master: str,
-    zone: str,
     keyname: Optional[str],
     keyalgorithm: Optional[str],
     secret: Optional[str],
-) -> dns.zone.Zone:
+    zone: Optional[dns.zone.Zone] = None,
+) -> Optional[dns.zone.Zone]:
     """Perform zone transfer"""
     if keyname and keyalgorithm and secret:
         keyring = dns.tsigkeyring.from_text({keyname: secret})
@@ -159,10 +170,30 @@ def axfr(
     else:
         keyring = None
         keyalgorithm = None
+
+    if zone is not None:
+        serial = zone.get_rdataset(zone.origin, dns.rdatatype.SOA)[0].serial
+        (query, new_serial) = dns.xfr.make_query(
+            zone,
+            serial=serial,
+            keyring=keyring,
+            keyname=keyname,
+            keyalgorithm=keyalgorithm,
+        )
+        if serial == new_serial:
+            logger.info("Zone %s not changed", origin)
+            return zone
+
     m = dns.query.xfr(
-        master, zone, keyname=keyname, keyring=keyring, keyalgorithm=keyalgorithm
+        master, origin, keyname=keyname, keyring=keyring, keyalgorithm=keyalgorithm
     )
-    return dns.zone.from_xfr(m)
+
+    t1 = time.perf_counter()
+    zone = dns.zone.from_xfr(m)
+    t2 = time.perf_counter()
+    logger.info("Zone %s transferred in %.3f seconds", origin, t2 - t1)
+
+    return zone
 
 
 def get_catz_zones(catalog_zone: dns.zone.Zone) -> Set[str]:
