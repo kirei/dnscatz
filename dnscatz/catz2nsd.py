@@ -69,25 +69,34 @@ def read_dicts(filename: str) -> List[dict]:
                 doc = yaml.safe_load(data)
                 if isinstance(doc, dict):
                     res.append(doc)
+                data = ""
     if len(data):
         doc = yaml.safe_load(data)
         if isinstance(doc, dict):
             res.append(doc)
+        data = ""
     return res
 
 
 def read_config(filename: str) -> List[CatalogZone]:
     """Read configuration file and return list of catalog zones"""
 
-    res = []
+    res = {}
+    origins = set()
     config_dicts = read_dicts(filename)
 
     # read all TSIG keys
     tsigs = {}
     for config_dict in config_dicts:
         if key_dict := config_dict.get("key"):
-            tsigs[key_dict["name"]] = TSIG(
-                keyname=key_dict["name"],
+            name = key_dict["name"]
+
+            if name in tsigs:
+                logger.error("Duplicate key %s found", name)
+                sys.exit(-1)
+
+            tsigs[name] = TSIG(
+                keyname=name,
                 keyalgorithm=key_dict["algorithm"],
                 secret=key_dict["secret"],
             )
@@ -97,6 +106,10 @@ def read_config(filename: str) -> List[CatalogZone]:
         if cz_dict := config_dict.get("catalog-zone"):
             name = cz_dict["name"]
             pattern = cz_dict["pattern"]
+
+            if name in res:
+                logger.error("Duplicate catalog-zone %s found", name)
+                sys.exit(-1)
 
             if xfr_dict := cz_dict.get("request-xfr"):
                 master, keyname = xfr_dict.split()
@@ -125,11 +138,11 @@ def read_config(filename: str) -> List[CatalogZone]:
                 )
                 sys.exit(-1)
 
-            res.append(
-                CatalogZone(zone=name, pattern=pattern, zones=get_catz_zones(zone))
+            res[name] = CatalogZone(
+                zone=name, pattern=pattern, zones=get_catz_zones(zone)
             )
 
-    return res
+    return res.values()
 
 
 def axfr(
