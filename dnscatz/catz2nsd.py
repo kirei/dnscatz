@@ -66,6 +66,10 @@ class TSIG:
         )
 
 
+class InvalidConfigurationError(ValueError):
+    pass
+
+
 class CatalogZoneError(ValueError):
     pass
 
@@ -126,14 +130,11 @@ def read_config_catalog_zone(zone_dict: dict, keys: Dict[str, TSIG]) -> CatalogZ
     elif zonefile := zone_dict.get("zonefile"):
         zone = dns.zone.from_file(zonefile, origin=name)
     else:
-        logger.error("Either request-xfr or zonefile must be specified for %s", name)
-        sys.exit(-1)
+        raise InvalidConfigurationError(
+            f"Either request-xfr or zonefile must be specified for {name}"
+        )
 
-    try:
-        return CatalogZone(origin=name, pattern=pattern, zones=get_catz_zones(zone))
-    except CatalogZoneError as exc:
-        logger.error("%s", str(exc))
-        sys.exit(-1)
+    return CatalogZone(origin=name, pattern=pattern, zones=get_catz_zones(zone))
 
 
 def read_config(filename: str) -> List[CatalogZone]:
@@ -147,18 +148,18 @@ def read_config(filename: str) -> List[CatalogZone]:
     # read keys
     for config_dict in config_dicts:
         if key_dict := config_dict.get("key"):
-            if key_dict["name"] in keys:
-                logger.error("Duplicate key %s found", key_dict["name"])
-                sys.exit(-1)
+            name = key_dict["name"]
+            if name in keys:
+                raise InvalidConfigurationError(f"Duplicate key {name} found")
             tsig = TSIG.from_dict(key_dict)
             keys[tsig.keyname] = tsig
 
     # read catalog zones
     for config_dict in config_dicts:
         if zone_dict := config_dict.get("catalog-zone"):
-            if zone_dict["name"] in zones:
-                logger.error("Duplicate catalog-zone %s found", zone_dict["name"])
-                sys.exit(-1)
+            name = zone_dict["name"]
+            if name in zones:
+                raise InvalidConfigurationError(f"Duplicate catalog-zone {name} found")
             catalog_zone = read_config_catalog_zone(zone_dict, keys)
             zones[catalog_zone.origin] = catalog_zone
 
@@ -251,7 +252,7 @@ def ensure_unique_zones(catalog_zones: List[CatalogZone]):
             logger.error("%s defined in multiple catalogs: %s", zone, catalogs)
             errors += 1
     if errors:
-        sys.exit(-1)
+        raise InvalidConfigurationError("Duplicate zones found in catalogs")
 
 
 def get_current_zones(filename: str) -> Dict[str, str]:
@@ -299,9 +300,12 @@ def main() -> None:
     else:
         logging.basicConfig(level=logging.INFO)
 
-    catalog_zones = read_config(args.config)
-
-    ensure_unique_zones(catalog_zones)
+    try:
+        catalog_zones = read_config(args.config)
+        ensure_unique_zones(catalog_zones)
+    except (InvalidConfigurationError, CatalogZoneError) as exc:
+        logger.error("%s", str(exc))
+        sys.exit(-1)
 
     current_zone_patterns = get_current_zones(args.zonelist)
     current_zones = set(current_zone_patterns.keys())
