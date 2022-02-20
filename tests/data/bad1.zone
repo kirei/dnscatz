@@ -1,0 +1,6 @@
+test.catz. 0 IN SOA invalid. invalid. 1645373796 3600 600 2147483647 0
+test.catz. 0 IN NS invalid.
+version.test.catz. 0 IN TXT "2"
+85367510-5945-5a9d-998c-8c4a22100595.zones.test.catz. 0 IN PTR example.org.
+85367510-5945-5a9d-998c-8c4a22100595.zones.test.catz. 0 IN PTR example.net.
+85367510-5945-5a9d-998c-8c4a22100595.zones.test.catz. 0 IN PTR example.com.
