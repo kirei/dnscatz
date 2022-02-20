@@ -66,6 +66,10 @@ class TSIG:
         )
 
 
+class CatalogZoneError(ValueError):
+    pass
+
+
 def read_dicts(filename: str) -> List[dict]:
     """Read multiple YAML dicts from file"""
     res = []
@@ -125,7 +129,11 @@ def read_config_catalog_zone(zone_dict: dict, keys: Dict[str, TSIG]) -> CatalogZ
         logger.error("Either request-xfr or zonefile must be specified for %s", name)
         sys.exit(-1)
 
-    return CatalogZone(origin=name, pattern=pattern, zones=get_catz_zones(zone))
+    try:
+        return CatalogZone(origin=name, pattern=pattern, zones=get_catz_zones(zone))
+    except CatalogZoneError as exc:
+        logger.error("%s", str(exc))
+        sys.exit(-1)
 
 
 def read_config(filename: str) -> List[CatalogZone]:
@@ -206,11 +214,14 @@ def get_catz_zones(catalog_zone: dns.zone.Zone) -> Set[str]:
             if rdataset := v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.TXT):
                 catz_version = get_catz_version(rdataset[0])
                 if catz_version not in SUPPORTED_VERSIONS:
-                    logger.error("Unsupported catalog zone version (%s)", catz_version)
-                    sys.exit(-1)
+                    raise CatalogZoneError(
+                        f"Unsupported catalog zone version ({catz_version})"
+                    )
         elif str(k).endswith(".zones"):
-            for zone in v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.PTR):
-                zones.add(str(zone).rstrip("."))
+            rdataset = v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.PTR)
+            if len(rdataset) != 1:
+                raise CatalogZoneError("Broken catalog zone (PTR)")
+            zones.add(str(rdataset[0]).rstrip("."))
         elif str(k).startswith("group."):
             logging.info("Group property not supported: %s", str(k))
         elif str(k).startswith("coo."):
