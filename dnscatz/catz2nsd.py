@@ -95,7 +95,9 @@ def read_dicts(filename: str) -> List[dict]:
     return res
 
 
-def read_config_catalog_zone(zone_dict: dict, keys: Dict[str, TSIG]) -> CatalogZone:
+def parse_config_catalog_zone(
+    zone_dict: dict, keys: Dict[str, TSIG], cwd: Optional[str] = None
+) -> CatalogZone:
     name = zone_dict["name"]
     pattern = zone_dict["pattern"]
 
@@ -111,10 +113,13 @@ def read_config_catalog_zone(zone_dict: dict, keys: Dict[str, TSIG]) -> CatalogZ
 
         zone = None
         if zonefile := zone_dict.get("zonefile"):
+            zonefile = os.path.join(cwd, zonefile) if cwd else zonefile
             try:
                 zone = dns.zone.from_file(zonefile, origin=name)
             except FileNotFoundError:
                 pass
+        else:
+            zonefile = None
 
         zone = axfr(
             origin=name,
@@ -125,9 +130,10 @@ def read_config_catalog_zone(zone_dict: dict, keys: Dict[str, TSIG]) -> CatalogZ
             zone=zone,
         )
 
-        if zonefile := zone_dict.get("zonefile"):
+        if zonefile:
             zone.to_file(zonefile, want_origin=True)
     elif zonefile := zone_dict.get("zonefile"):
+        zonefile = os.path.join(cwd, zonefile) if cwd else zonefile
         zone = dns.zone.from_file(zonefile, origin=name)
     else:
         raise InvalidConfigurationError(
@@ -137,10 +143,10 @@ def read_config_catalog_zone(zone_dict: dict, keys: Dict[str, TSIG]) -> CatalogZ
     return CatalogZone(origin=name, pattern=pattern, zones=get_catz_zones(zone))
 
 
-def read_config(filename: str) -> List[CatalogZone]:
+def parse_config(
+    config_dicts: List[dict], cwd: Optional[str] = None
+) -> List[CatalogZone]:
     """Read configuration file and return list of catalog zones"""
-
-    config_dicts = read_dicts(filename)
 
     keys = {}
     zones = {}
@@ -160,7 +166,7 @@ def read_config(filename: str) -> List[CatalogZone]:
             name = zone_dict["name"]
             if name in zones:
                 raise InvalidConfigurationError(f"Duplicate catalog-zone {name} found")
-            catalog_zone = read_config_catalog_zone(zone_dict, keys)
+            catalog_zone = parse_config_catalog_zone(zone_dict, keys, cwd)
             zones[catalog_zone.origin] = catalog_zone
 
     return zones.values()
@@ -301,7 +307,8 @@ def main() -> None:
         logging.basicConfig(level=logging.INFO)
 
     try:
-        catalog_zones = read_config(args.config)
+        config_dicts = read_dicts(args.config)
+        catalog_zones = parse_config(config_dicts)
         ensure_unique_zones(catalog_zones)
     except (InvalidConfigurationError, CatalogZoneError) as exc:
         logger.error("%s", str(exc))
