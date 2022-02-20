@@ -7,6 +7,7 @@ import argparse
 import sys
 import time
 import uuid
+from io import StringIO
 from typing import List
 
 CATZ_VERSION = 2
@@ -22,8 +23,13 @@ DEFAULT_SOA_MINIMUM = 0
 DEFAULT_TTL = 0
 
 
-def print_catalog_zone(origin: str, zones: List[str]):
+def get_catalog_zone(origin: str, zones: List[str]) -> str:
+    buf = StringIO()
     serial = int(time.time())
+
+    old_stdout = sys.stdout
+    sys.stdout = buf
+
     print(
         " ".join(
             [
@@ -42,11 +48,16 @@ def print_catalog_zone(origin: str, zones: List[str]):
     )
     print(f"{origin} {DEFAULT_TTL} IN NS invalid.")
     print(f'version.{origin} {DEFAULT_TTL} IN TXT "{CATZ_VERSION}"')
+
     for zone in zones:
         if not zone.endswith("."):
             zone += "."
         zone_id = uuid.uuid5(uuid.NAMESPACE_DNS, zone)
         print(f"{zone_id}.zones.{origin} {DEFAULT_TTL} IN PTR {zone}")
+
+    sys.stdout = old_stdout
+
+    return buf.getvalue()
 
 
 def main() -> None:
@@ -80,10 +91,13 @@ def main() -> None:
     if not origin.endswith("."):
         origin += "."
 
-    if args.output:
-        sys.stdout = open(args.output, "wt")
+    catalog_zone_str = get_catalog_zone(origin=origin, zones=zones)
 
-    print_catalog_zone(origin=origin, zones=zones)
+    if args.output:
+        with open(args.output, "wt") as output_file:
+            output_file.write(catalog_zone_str)
+    else:
+        print(catalog_zone_str)
 
 
 if __name__ == "__main__":
