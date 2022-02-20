@@ -17,10 +17,10 @@ def test_config_good():
 def test_config_bad_1():
     config = catz2nsd.read_dicts(DATADIR / "bad1.conf")
     with pytest.raises(CatalogZoneError):
-        catalog_zones = catz2nsd.parse_config(config, cwd=DATADIR)
+        _ = catz2nsd.parse_config(config, cwd=DATADIR)
 
 
 def test_config_bad_2():
     config = catz2nsd.read_dicts(DATADIR / "bad2.conf")
     with pytest.raises(CatalogZoneError):
-        catalog_zones = catz2nsd.parse_config(config, cwd=DATADIR)
+        _ = catz2nsd.parse_config(config, cwd=DATADIR)
