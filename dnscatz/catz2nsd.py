@@ -76,23 +76,20 @@ class CatalogZoneError(ValueError):
 
 def read_multidicts(filename: str) -> List[dict]:
     """Read multiple YAML dictionaries from file, return list of them"""
-    res = []
+    return parse_multidicts(open(filename).read())
+
+
+def parse_multidicts(config: str) -> List[dict]:
+    """Parse multiple YAML dictionaries from string, return list of them"""
     data = ""
-    with open(filename) as input_file:
-        for line in input_file.readlines():
-            if not re.fullmatch(r"^\s*$", line.rstrip()):
-                data += line
-            elif len(data):
-                doc = yaml.safe_load(data)
-                if isinstance(doc, dict):
-                    res.append(doc)
-                data = ""
-    # process remaining part
-    if len(data):
-        doc = yaml.safe_load(data)
-        if isinstance(doc, dict):
-            res.append(doc)
-        data = ""
+    for line in config.split("\n"):
+        if line.startswith("#") or re.fullmatch(r"^\s+$", line):
+            print("IGNORE", line)
+            continue
+        elif re.match(r"^\S", line):
+            data += "\n--- \n"
+        data += line + "\n"
+    res = list(yaml.safe_load_all(data))
     return res
 
 
