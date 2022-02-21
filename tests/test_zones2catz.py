@@ -1,5 +1,6 @@
-from dnscatz import zones2catz
 import dns.zone
+
+from dnscatz import zones2catz
 
 ZONES = [
     "example.com",
