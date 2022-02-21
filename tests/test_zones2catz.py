@@ -1,4 +1,5 @@
 from dnscatz import zones2catz
+import dns.zone
 
 ZONES = [
     "example.com",
@@ -8,4 +9,7 @@ ZONES = [
 
 
 def test_zones2catz():
-    _ = zones2catz.get_catalog_zone("test.cat", ZONES)
+    origin = "test.catz."
+    contents = zones2catz.generate_catalog_zone(origin, ZONES)
+    zone = dns.zone.from_text(contents, origin=origin)
+    assert str(zone.origin) == origin

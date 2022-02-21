@@ -23,7 +23,7 @@ DEFAULT_SOA_MINIMUM = 0
 DEFAULT_TTL = 0
 
 
-def get_catalog_zone(origin: str, zones: List[str]) -> str:
+def generate_catalog_zone(origin: str, zones: List[str]) -> str:
     buf = StringIO()
     serial = int(time.time())
 
@@ -91,7 +91,7 @@ def main() -> None:
     if not origin.endswith("."):
         origin += "."
 
-    catalog_zone_str = get_catalog_zone(origin=origin, zones=zones)
+    catalog_zone_str = generate_catalog_zone(origin=origin, zones=zones)
 
     if args.output:
         with open(args.output, "wt") as output_file:

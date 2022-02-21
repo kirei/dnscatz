@@ -82,7 +82,7 @@ key:
 
 def test_config_good():
     config = catz2nsd.parse_multidicts(CONFIG_GOOD)
-    catalog_zones = catz2nsd.parse_config(config, cwd=DATADIR)
+    _ = catz2nsd.parse_config(config, cwd=DATADIR)
 
 
 def test_config_bad_1():
