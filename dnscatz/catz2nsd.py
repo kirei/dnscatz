@@ -74,8 +74,8 @@ class CatalogZoneError(ValueError):
     pass
 
 
-def read_dicts(filename: str) -> List[dict]:
-    """Read multiple YAML dicts from file"""
+def read_multidicts(filename: str) -> List[dict]:
+    """Read multiple YAML dictionaries from file, return list of them"""
     res = []
     data = ""
     with open(filename) as input_file:
@@ -87,6 +87,7 @@ def read_dicts(filename: str) -> List[dict]:
                 if isinstance(doc, dict):
                     res.append(doc)
                 data = ""
+    # process remaining part
     if len(data):
         doc = yaml.safe_load(data)
         if isinstance(doc, dict):
@@ -95,9 +96,39 @@ def read_dicts(filename: str) -> List[dict]:
     return res
 
 
+def parse_config(
+    config_dicts: List[dict], cwd: Optional[str] = None
+) -> List[CatalogZone]:
+    """Parse configuration (list of dictionaries) and return list of catalog zones"""
+
+    keys = {}
+    zones = {}
+
+    # read keys
+    for config_dict in config_dicts:
+        if key_dict := config_dict.get("key"):
+            name = key_dict["name"]
+            if name in keys:
+                raise InvalidConfigurationError(f"Duplicate key {name} found")
+            tsig = TSIG.from_dict(key_dict)
+            keys[tsig.keyname] = tsig
+
+    # read catalog zones
+    for config_dict in config_dicts:
+        if zone_dict := config_dict.get("catalog-zone"):
+            name = zone_dict["name"]
+            if name in zones:
+                raise InvalidConfigurationError(f"Duplicate catalog-zone {name} found")
+            catalog_zone = parse_config_catalog_zone(zone_dict, keys, cwd)
+            zones[catalog_zone.origin] = catalog_zone
+
+    return zones.values()
+
+
 def parse_config_catalog_zone(
     zone_dict: dict, keys: Dict[str, TSIG], cwd: Optional[str] = None
 ) -> CatalogZone:
+    """Parse zone configuration dictionary"""
     name = zone_dict["name"]
     pattern = zone_dict["pattern"]
 
@@ -141,35 +172,6 @@ def parse_config_catalog_zone(
         )
 
     return CatalogZone(origin=name, pattern=pattern, zones=get_catz_zones(zone))
-
-
-def parse_config(
-    config_dicts: List[dict], cwd: Optional[str] = None
-) -> List[CatalogZone]:
-    """Read configuration file and return list of catalog zones"""
-
-    keys = {}
-    zones = {}
-
-    # read keys
-    for config_dict in config_dicts:
-        if key_dict := config_dict.get("key"):
-            name = key_dict["name"]
-            if name in keys:
-                raise InvalidConfigurationError(f"Duplicate key {name} found")
-            tsig = TSIG.from_dict(key_dict)
-            keys[tsig.keyname] = tsig
-
-    # read catalog zones
-    for config_dict in config_dicts:
-        if zone_dict := config_dict.get("catalog-zone"):
-            name = zone_dict["name"]
-            if name in zones:
-                raise InvalidConfigurationError(f"Duplicate catalog-zone {name} found")
-            catalog_zone = parse_config_catalog_zone(zone_dict, keys, cwd)
-            zones[catalog_zone.origin] = catalog_zone
-
-    return zones.values()
 
 
 def axfr(
@@ -307,7 +309,7 @@ def main() -> None:
         logging.basicConfig(level=logging.INFO)
 
     try:
-        config_dicts = read_dicts(args.config)
+        config_dicts = read_multidicts(args.config)
         catalog_zones = parse_config(config_dicts)
         ensure_unique_zones(catalog_zones)
     except (InvalidConfigurationError, CatalogZoneError) as exc:
