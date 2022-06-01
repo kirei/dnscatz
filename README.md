@@ -19,7 +19,7 @@ The configuration file is NSD-like as described below:
 
 ## zones2catz
 
-`zones2catz` creates a catalog zone from a text file containing one zone per line and writes its output to a file or _stdout_.
+`zones2catz` creates a catalog zone from a comma-separated text file containing one zone per line (and optionally the intended group for the zone) and writes its output to a file or _stdout_.
 
 ## References
 
