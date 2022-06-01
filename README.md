@@ -17,9 +17,11 @@ The configuration file is NSD-like as described below:
       algorithm: <string>
       secret: <base64 blob>
 
+If a group property is specified for a given zone (see [section 4.4.2](https://datatracker.ietf.org/doc/html/draft-ietf-dnsop-dns-catalog-zones#section-4.4.2) of the RFC draft), this overrides the `pattern` option defined for the corresponding catalog zone. 
+
 ## zones2catz
 
-`zones2catz` creates a catalog zone from a text file containing one zone per line and writes its output to a file or _stdout_.
+`zones2catz` creates a catalog zone from a comma-separated text file containing one zone per line (and optionally the intended group for the zone) and writes its output to a file or _stdout_.
 
 ## References
 
