@@ -7,8 +7,8 @@ import argparse
 import sys
 import time
 import uuid
+import csv
 from io import StringIO
-from typing import List
 
 CATZ_VERSION = 2
 
@@ -23,7 +23,7 @@ DEFAULT_SOA_MINIMUM = 0
 DEFAULT_TTL = 0
 
 
-def generate_catalog_zone(origin: str, zones: List[str]) -> str:
+def generate_catalog_zone(origin: str, zonelist: str) -> str:
     buf = StringIO()
     serial = int(time.time())
 
@@ -49,11 +49,17 @@ def generate_catalog_zone(origin: str, zones: List[str]) -> str:
     print(f"{origin} {DEFAULT_TTL} IN NS invalid.")
     print(f'version.{origin} {DEFAULT_TTL} IN TXT "{CATZ_VERSION}"')
 
-    for zone in zones:
-        if not zone.endswith("."):
-            zone += "."
-        zone_id = uuid.uuid5(uuid.NAMESPACE_DNS, zone)
-        print(f"{zone_id}.zones.{origin} {DEFAULT_TTL} IN PTR {zone}")
+    with open(zonelist, mode='r') as csv_file:
+        csv_reader = csv.DictReader(csv_file, fieldnames=['zone', 'group'])
+        for row in csv_reader:
+            zone = row['zone'].strip()
+            if not zone.endswith("."):
+                zone += "."
+            zone_id = uuid.uuid5(uuid.NAMESPACE_DNS, zone)
+            print(f"{zone_id}.zones.{origin} {DEFAULT_TTL} IN PTR {zone}")
+            if row['group']:
+                group = row['group'].strip()
+                print(f"group.{zone_id}.zones.{origin} {DEFAULT_TTL} IN TXT \"{group}\"")
 
     sys.stdout = old_stdout
 
@@ -83,15 +89,11 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    zones = set()
-    for z in open(args.zonelist).readlines():
-        zones.add(z.rstrip())
-
     origin = args.origin
     if not origin.endswith("."):
         origin += "."
 
-    catalog_zone_str = generate_catalog_zone(origin=origin, zones=zones)
+    catalog_zone_str = generate_catalog_zone(origin=origin, zonelist=args.zonelist)
 
     if args.output:
         with open(args.output, "wt") as output_file:
