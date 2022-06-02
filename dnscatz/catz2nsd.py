@@ -224,28 +224,51 @@ def get_catz_zones(catalog_zone: dns.zone.Zone) -> Dict:
                         f"Unsupported catalog zone version ({catz_version})"
                     )
         elif str(k).startswith("group."):
-            rdataset = v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.TXT)
-            if len(rdataset) != 1:
-                raise CatalogZoneError("Broken catalog zone (group/TXT)")
-            uuid = str(k).split(".")[1]
-            group = str(rdataset[0]).strip("\"")
-            if uuid not in zones:
-                zones[uuid] = {}
-            zones[uuid]['group'] = group
+            get_zone_property(
+                zones,
+                str(k),
+                v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.TXT)
+            )
         elif str(k).startswith("coo."):
             logging.info("Change of Ownership property not supported: %s", str(k))
         elif str(k).startswith("serial."):
             logging.info("Serial property not supported: %s", str(k))
         elif str(k).endswith(".zones"):
-            rdataset = v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.PTR)
-            if len(rdataset) != 1:
-                raise CatalogZoneError("Broken catalog zone (PTR)")
-            uuid = str(k).split(".")[0]
-            zone = str(rdataset[0]).rstrip(".")
-            if uuid not in zones:
-                zones[uuid] = {}
-            zones[uuid]['zone'] = zone
+            get_zone(
+                zones,
+                str(k),
+                v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.PTR)
+            )
     return zones
+
+
+def get_zone_property(
+    zones: Dict,
+    record: str,
+    rdataset: dns.rdataset.Rdataset
+):
+    """Get zone property from correspindig TXT record"""
+    zone_property = record.split(".")[0]
+    uuid = record.split(".")[1]
+    if len(rdataset) != 1:
+        raise CatalogZoneError("Broken catalog zone (%s/TXT)", zone_property)
+    if uuid not in zones:
+        zones[uuid] = {}
+    zones[uuid][zone_property] = str(rdataset[0]).strip("\"")
+
+
+def get_zone(
+    zones: Dict,
+    record: str,
+    rdataset: dns.rdataset.Rdataset
+):
+    """Get zone from PTR record"""
+    uuid = record.split(".")[0]
+    if len(rdataset) != 1:
+        raise CatalogZoneError("Broken catalog zone (PTR)")
+    if uuid not in zones:
+        zones[uuid] = {}
+    zones[uuid]['zone'] = str(rdataset[0]).rstrip(".")
 
 
 def get_catz_version(rr) -> Optional[int]:
