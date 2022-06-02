@@ -4,10 +4,10 @@ containing list of zones
 """
 
 import argparse
+import csv
 import sys
 import time
 import uuid
-import csv
 from io import StringIO
 
 CATZ_VERSION = 2
@@ -49,17 +49,17 @@ def generate_catalog_zone(origin: str, zonelist: str) -> str:
     print(f"{origin} {DEFAULT_TTL} IN NS invalid.")
     print(f'version.{origin} {DEFAULT_TTL} IN TXT "{CATZ_VERSION}"')
 
-    with open(zonelist, mode='r') as csv_file:
-        csv_reader = csv.DictReader(csv_file, fieldnames=['zone', 'group'])
+    with open(zonelist, mode="r") as csv_file:
+        csv_reader = csv.DictReader(csv_file, fieldnames=["zone", "group"])
         for row in csv_reader:
-            zone = row['zone'].strip()
+            zone = row["zone"].strip()
             if not zone.endswith("."):
                 zone += "."
             zone_id = uuid.uuid5(uuid.NAMESPACE_DNS, zone)
             print(f"{zone_id}.zones.{origin} {DEFAULT_TTL} IN PTR {zone}")
-            if row['group']:
-                group = row['group'].strip()
-                print(f"group.{zone_id}.zones.{origin} {DEFAULT_TTL} IN TXT \"{group}\"")
+            if row["group"]:
+                group = row["group"].strip()
+                print(f'group.{zone_id}.zones.{origin} {DEFAULT_TTL} IN TXT "{group}"')
 
     sys.stdout = old_stdout
 
@@ -93,7 +93,7 @@ def main() -> None:
     if not origin.endswith("."):
         origin += "."
 
-    catalog_zone_str = generate_catalog_zone(origin=origin, zonelist=args.zonelist)
+    catalog_zone_str = generate_catalog_zone(origin=origin, zonelist=str(args.zonelist))
 
     if args.output:
         with open(args.output, "wt") as output_file:

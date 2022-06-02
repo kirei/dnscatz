@@ -225,9 +225,7 @@ def get_catz_zones(catalog_zone: dns.zone.Zone) -> Dict:
                     )
         elif str(k).startswith("group."):
             get_zone_property(
-                zones,
-                str(k),
-                v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.TXT)
+                zones, str(k), v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.TXT)
             )
         elif str(k).startswith("coo."):
             logging.info("Change of Ownership property not supported: %s", str(k))
@@ -235,18 +233,12 @@ def get_catz_zones(catalog_zone: dns.zone.Zone) -> Dict:
             logging.info("Serial property not supported: %s", str(k))
         elif str(k).endswith(".zones"):
             get_zone(
-                zones,
-                str(k),
-                v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.PTR)
+                zones, str(k), v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.PTR)
             )
     return zones
 
 
-def get_zone_property(
-    zones: Dict,
-    record: str,
-    rdataset: dns.rdataset.Rdataset
-):
+def get_zone_property(zones: Dict, record: str, rdataset: dns.rdataset.Rdataset):
     """Get zone property from correspindig TXT record"""
     zone_property = record.split(".")[0]
     uuid = record.split(".")[1]
@@ -254,21 +246,17 @@ def get_zone_property(
         raise CatalogZoneError("Broken catalog zone (%s/TXT)", zone_property)
     if uuid not in zones:
         zones[uuid] = {}
-    zones[uuid][zone_property] = str(rdataset[0]).strip("\"")
+    zones[uuid][zone_property] = str(rdataset[0]).strip('"')
 
 
-def get_zone(
-    zones: Dict,
-    record: str,
-    rdataset: dns.rdataset.Rdataset
-):
+def get_zone(zones: Dict, record: str, rdataset: dns.rdataset.Rdataset):
     """Get zone from PTR record"""
     uuid = record.split(".")[0]
     if len(rdataset) != 1:
         raise CatalogZoneError("Broken catalog zone (PTR)")
     if uuid not in zones:
         zones[uuid] = {}
-    zones[uuid]['zone'] = str(rdataset[0]).rstrip(".")
+    zones[uuid]["zone"] = str(rdataset[0]).rstrip(".")
 
 
 def get_catz_version(rr) -> Optional[int]:
@@ -354,9 +342,9 @@ def main() -> None:
 
     for cz in catalog_zones:
         for uuid in cz.zones:
-            zone = cz.zones[uuid]['zone']
-            if 'group' in cz.zones[uuid]:
-                group = cz.zones[uuid]['group']
+            zone = cz.zones[uuid]["zone"]
+            if "group" in cz.zones[uuid]:
+                group = cz.zones[uuid]["group"]
             else:
                 group = cz.pattern
             if zone not in current_zone_patterns:
