@@ -272,7 +272,7 @@ def ensure_unique_zones(catalog_zones: List[CatalogZone]):
     zone2catalogs = defaultdict(set)
     for cz in catalog_zones:
         for uuid in cz.zones:
-            zone = cz.zones[uuid]['zone']
+            zone = cz.zones[uuid]["zone"]
             zone2catalogs[zone].add(cz.origin)
     errors = 0
     for zone, catalogs in zone2catalogs.items():
