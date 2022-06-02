@@ -49,7 +49,7 @@ def generate_catalog_zone(origin: str, zonelist: str) -> str:
     print(f"{origin} {DEFAULT_TTL} IN NS invalid.")
     print(f'version.{origin} {DEFAULT_TTL} IN TXT "{CATZ_VERSION}"')
 
-    with open(zonelist, mode="r") as csv_file:
+    with open(str(zonelist), "r") as csv_file:
         csv_reader = csv.DictReader(csv_file, fieldnames=["zone", "group"])
         for row in csv_reader:
             zone = row["zone"].strip()
@@ -93,7 +93,7 @@ def main() -> None:
     if not origin.endswith("."):
         origin += "."
 
-    catalog_zone_str = generate_catalog_zone(origin=origin, zonelist=str(args.zonelist))
+    catalog_zone_str = generate_catalog_zone(origin=origin, zonelist=args.zonelist)
 
     if args.output:
         with open(args.output, "wt") as output_file:
