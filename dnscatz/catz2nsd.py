@@ -229,7 +229,7 @@ def get_catz_zones(catalog_zone: dns.zone.Zone) -> Dict:
                 raise CatalogZoneError("Broken catalog zone (group/TXT)")
             uuid = str(k).split(".")[1]
             group = str(rdataset[0]).strip("\"")
-            if not uuid in zones:
+            if uuid not in zones:
                 zones[uuid] = {}
             zones[uuid]['group'] = group
         elif str(k).startswith("coo."):
@@ -242,7 +242,7 @@ def get_catz_zones(catalog_zone: dns.zone.Zone) -> Dict:
                 raise CatalogZoneError("Broken catalog zone (PTR)")
             uuid = str(k).split(".")[0]
             zone = str(rdataset[0]).rstrip(".")
-            if not uuid in zones:
+            if uuid not in zones:
                 zones[uuid] = {}
             zones[uuid]['zone'] = zone
     return zones
