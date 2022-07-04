@@ -52,11 +52,17 @@ def generate_catalog_zone(
     print(f"{origin} {DEFAULT_TTL} IN NS invalid.")
     print(f'version.{origin} {DEFAULT_TTL} IN TXT "{CATZ_VERSION}"')
 
-    for zone in zones:
-        if not zone.endswith("."):
-            zone += "."
-        zone_id = uuid.uuid5(uuid.NAMESPACE_DNS, zone)
-        print(f"{zone_id}.zones.{origin} {DEFAULT_TTL} IN PTR {zone}")
+    with open(str(zonelist), "r") as csv_file:
+        csv_reader = csv.DictReader(csv_file, fieldnames=["zone", "group"])
+        for row in csv_reader:
+            zone = row["zone"].strip()
+            if not zone.endswith("."):
+                zone += "."
+            zone_id = uuid.uuid5(uuid.NAMESPACE_DNS, zone)
+            print(f"{zone_id}.zones.{origin} {DEFAULT_TTL} IN PTR {zone}")
+            if row["group"]:
+                group = row["group"].strip()
+                print(f'group.{zone_id}.zones.{origin} {DEFAULT_TTL} IN TXT "{group}"')
 
     if zonelist:
         with open(zonelist, mode="r") as csv_file:
