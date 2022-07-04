@@ -1,3 +1,3 @@
 example.com
-example.net
-example.org
+example.net,group1
+example.org,group2
