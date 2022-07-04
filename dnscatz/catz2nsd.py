@@ -223,17 +223,17 @@ def get_catz_zones(catalog_zone: dns.zone.Zone) -> Set[str]:
                     raise CatalogZoneError(
                         f"Unsupported catalog zone version ({catz_version})"
                     )
-        elif str(k).endswith(".zones"):
-            rdataset = v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.PTR)
-            if len(rdataset) != 1:
-                raise CatalogZoneError("Broken catalog zone (PTR)")
-            zones.add(str(rdataset[0]).rstrip("."))
         elif str(k).startswith("group."):
             logging.info("Group property not supported: %s", str(k))
         elif str(k).startswith("coo."):
             logging.info("Change of Ownership property not supported: %s", str(k))
         elif str(k).startswith("serial."):
             logging.info("Serial property not supported: %s", str(k))
+        elif str(k).endswith(".zones"):
+            rdataset = v.get_rdataset(dns.rdataclass.IN, dns.rdatatype.PTR)
+            if len(rdataset) != 1:
+                raise CatalogZoneError("Broken catalog zone (PTR)")
+            zones.add(str(rdataset[0]).rstrip("."))
     return zones
 
 
