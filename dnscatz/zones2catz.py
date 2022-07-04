@@ -9,6 +9,7 @@ import sys
 import time
 import uuid
 from io import StringIO
+from typing import List, Optional
 
 CATZ_VERSION = 2
 
@@ -23,7 +24,9 @@ DEFAULT_SOA_MINIMUM = 0
 DEFAULT_TTL = 0
 
 
-def generate_catalog_zone(origin: str, zonelist: str) -> str:
+def generate_catalog_zone(
+    origin: str, zones: List[str] = [], zonelist: Optional[str] = None
+) -> str:
     buf = StringIO()
     serial = int(time.time())
 
@@ -60,6 +63,21 @@ def generate_catalog_zone(origin: str, zonelist: str) -> str:
             if row["group"]:
                 group = row["group"].strip()
                 print(f'group.{zone_id}.zones.{origin} {DEFAULT_TTL} IN TXT "{group}"')
+
+    if zonelist:
+        with open(zonelist, mode="r") as csv_file:
+            csv_reader = csv.DictReader(csv_file, fieldnames=["zone", "group"])
+            for row in csv_reader:
+                zone = row["zone"].strip()
+                if not zone.endswith("."):
+                    zone += "."
+                zone_id = uuid.uuid5(uuid.NAMESPACE_DNS, zone)
+                print(f"{zone_id}.zones.{origin} {DEFAULT_TTL} IN PTR {zone}")
+                if row["group"]:
+                    group = row["group"].strip()
+                    print(
+                        f'group.{zone_id}.zones.{origin} {DEFAULT_TTL} IN TXT "{group}"'
+                    )
 
     sys.stdout = old_stdout
 
