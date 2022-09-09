@@ -37,7 +37,6 @@ import yaml
 
 DEFAULT_CONFIG = "/etc/nsd/catz2nsd.conf"
 DEFAULT_ZONELIST = "/var/lib/nsd/zone.list"
-DEFAULT_TSIG_ALGORITHM = "hmac-sha256"
 
 SUPPORTED_VERSIONS = [2]
 
