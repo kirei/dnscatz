@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "DNS Catalog Zones Tools"
 authors = ["Jakob Schlyter <jakob@kirei.se>"]
 license = "BSD-2"
+readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.9"
