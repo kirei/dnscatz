@@ -5,6 +5,7 @@ import pytest
 
 from dnscatz import catz2nsd
 from dnscatz.catz2nsd import CatalogZoneError, InvalidConfigurationError
+from dnscatz.utils import parse_multidicts
 
 DATADIR = Path(os.path.abspath(os.path.dirname(__file__))) / "data"
 
@@ -81,29 +82,29 @@ key:
 
 
 def test_config_good():
-    config = catz2nsd.parse_multidicts(CONFIG_GOOD)
+    config = parse_multidicts(CONFIG_GOOD)
     _ = catz2nsd.parse_config(config, cwd=DATADIR)
 
 
 def test_config_bad_1():
-    config = catz2nsd.parse_multidicts(CONFIG_BAD_ZONE1)
+    config = parse_multidicts(CONFIG_BAD_ZONE1)
     with pytest.raises(CatalogZoneError):
         _ = catz2nsd.parse_config(config, cwd=DATADIR)
 
 
 def test_config_bad_2():
-    config = catz2nsd.parse_multidicts(CONFIG_BAD_ZONE2)
+    config = parse_multidicts(CONFIG_BAD_ZONE2)
     with pytest.raises(CatalogZoneError):
         _ = catz2nsd.parse_config(config, cwd=DATADIR)
 
 
 def test_config_bad_key_dup():
-    config = catz2nsd.parse_multidicts(CONFIG_BAD_KEY_DUPE)
+    config = parse_multidicts(CONFIG_BAD_KEY_DUPE)
     with pytest.raises(InvalidConfigurationError):
         _ = catz2nsd.parse_config(config, cwd=DATADIR)
 
 
 def test_config_bad_zone_dup():
-    config = catz2nsd.parse_multidicts(CONFIG_BAD_ZONE_DUPE)
+    config = parse_multidicts(CONFIG_BAD_ZONE_DUPE)
     with pytest.raises(InvalidConfigurationError):
         _ = catz2nsd.parse_config(config, cwd=DATADIR)
