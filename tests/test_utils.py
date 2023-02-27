@@ -1,8 +1,3 @@
-import os.path
-from pathlib import Path
-
-import pytest
-
 from dnscatz.utils import parse_multidicts
 
 TEST_DATA = """
