@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dnscatz"
-version = "0.2.0"
+version = "0.2.1"
 description = "DNS Catalog Zones Tools"
 authors = ["Jakob Schlyter <jakob@kirei.se>"]
 license = "BSD-2"
@@ -12,15 +12,11 @@ dnspython = "^2.2.0"
 PyYAML = "^6.0"
 
 [tool.poetry.dev-dependencies]
-black = "^24.3.0"
 isort = "^5.10.1"
-pylama = "^8.3.7"
-pytest = "^7.0.1"
-pytest-black = "^0.3.12"
+pytest = "^8.2.1"
 pytest-isort = "^3.0.0"
-
-[tool.poetry.group.dev.dependencies]
-setuptools = "^69.2.0"
+ruff = "^0.4.6"
+pytest-ruff = "^0.3.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -32,3 +28,20 @@ zones2catz = "dnscatz.zones2catz:main"
 
 [tool.isort]
 profile = "black"
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+ignore = ["E501", "I001", "SIM102"]

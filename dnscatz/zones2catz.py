@@ -25,7 +25,7 @@ DEFAULT_TTL = 0
 
 
 def generate_catalog_zone(
-    origin: str, zones: List[str] = [], zonelist: Optional[str] = None
+    origin: str, zones: Optional[List[str]] = None, zonelist: Optional[str] = None
 ) -> str:
     buf = StringIO()
     serial = int(time.time())
@@ -52,14 +52,14 @@ def generate_catalog_zone(
     print(f"{origin} {DEFAULT_TTL} IN NS invalid.")
     print(f'version.{origin} {DEFAULT_TTL} IN TXT "{CATZ_VERSION}"')
 
-    for zone in zones:
+    for zone in zones or []:
         if not zone.endswith("."):
             zone += "."
         zone_id = uuid.uuid5(uuid.NAMESPACE_DNS, zone)
         print(f"{zone_id}.zones.{origin} {DEFAULT_TTL} IN PTR {zone}")
 
     if zonelist:
-        with open(zonelist, mode="r") as csv_file:
+        with open(zonelist) as csv_file:
             csv_reader = csv.DictReader(csv_file, fieldnames=["zone", "group"])
             for row in csv_reader:
                 zone = row["zone"].strip()
@@ -108,7 +108,7 @@ def main() -> None:
     catalog_zone_str = generate_catalog_zone(origin=origin, zonelist=args.zonelist)
 
     if args.output:
-        with open(args.output, "wt") as output_file:
+        with open(args.output, "w") as output_file:
             output_file.write(catalog_zone_str)
     else:
         print(catalog_zone_str)

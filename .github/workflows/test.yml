@@ -34,4 +34,4 @@ jobs:
           poetry run pylama dnscatz
       - name: Pytest
         run: |
-          poetry run pytest --isort --black
+          poetry run pytest --isort --ruff --ruff-format

@@ -16,6 +16,7 @@ key:
 """
 
 import argparse
+import contextlib
 import logging
 import os
 import re
@@ -71,14 +72,13 @@ def parse_config(
 def get_current_zones(filename: str) -> Dict[str, str]:
     """Get dictionary of current zones and patterns"""
     res = {}
-    try:
-        for line in open(filename).readlines():
-            if line.startswith("#"):
-                continue
-            if match := re.match(r"^add (\S+) (\w+)$", line.rstrip()):
-                res[match.group(1).lower()] = match.group(2)
-    except FileNotFoundError:
-        pass
+    with contextlib.suppress(FileNotFoundError):  # noqa
+        with open(filename) as fp:
+            for line in fp.readlines():
+                if line.startswith("#"):
+                    continue
+                if match := re.match(r"^add (\S+) (\w+)$", line.rstrip()):
+                    res[match.group(1).lower()] = match.group(2)
     return res
 
 

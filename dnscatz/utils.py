@@ -6,7 +6,8 @@ import yaml
 
 def read_multidicts(filename: str) -> List[dict]:
     """Read multiple YAML dictionaries from file, return list of them"""
-    return parse_multidicts(open(filename).read())
+    with open(filename) as fp:
+        return parse_multidicts(fp.read())
 
 
 def parse_multidicts(config: str) -> List[dict]:

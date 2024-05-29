@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import os
 import re
@@ -70,10 +71,8 @@ def parse_config_catalog_zone(
         zone = None
         if zonefile := zone_dict.get("zonefile"):
             zonefile = os.path.join(cwd, zonefile) if cwd else zonefile
-            try:
+            with contextlib.suppress(FileNotFoundError):
                 zone = dns.zone.from_file(zonefile, origin=name)
-            except FileNotFoundError:
-                pass
         else:
             zonefile = None
 
